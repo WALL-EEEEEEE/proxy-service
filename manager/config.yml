@@ -1,0 +1,9 @@
+redis:
+  address: "redis:6379"
+  password: ""
+mysql:
+  host: "mysql"
+  port: 3306
+  user:  "root"
+  password: "xxxx"
+  database: "proxy"

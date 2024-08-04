@@ -1,0 +1,53 @@
+syntax = "proto3";
+package adapter.v1;
+
+
+import "manager/v1/common.proto";
+import "manager/v1/proxy.proto";
+import "google/api/annotations.proto";
+import "buf/validate/validate.proto";
+
+/**
+Desc:
+  The Adapter service is a service that can be used to get proxy IPs from a hand of proxy providers.
+
+  All Adapter service must conforming this proto speicification, or it can't be handled by the quality control job.
+**/
+service AdapterService {
+  rpc ListProxies(ListProxiesRequest) returns (ListProxiesResponse) {
+    option (google.api.http) = {
+        post: "/proxy/v1/adapter/{adapter}" 
+        body: "*"
+    };
+  }
+}
+
+
+    
+message RawProxy {
+    repeated manager.v1.Proto proto = 1;
+    string   ip = 2;
+    int64    port = 3;
+    int64 ttl = 4;
+    manager.v1.Attr attr = 5;
+    manager.v1.UseConfig use_config = 6 [json_name = "use_config"];
+}
+
+
+message ListProxiesRequest {
+  string adapter = 1  [ (buf.validate.field).required=true, (buf.validate.field).string.min_len=1];
+  map<string,string> params = 2;
+  int64 limit = 3;
+  int64 offset = 4;
+}
+
+message ListProxiesResponse {
+  message Page {
+    int64 limit = 1;
+    int64 offset = 2;
+    int64 total = 3;
+  }
+  manager.v1.ResponseStatus status = 1;
+  Page page = 2;
+  repeated RawProxy proxies = 3;
+}

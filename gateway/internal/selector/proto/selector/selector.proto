@@ -1,0 +1,22 @@
+syntax = "proto3";
+package selector.v1;
+
+import "google/api/annotations.proto";
+import "buf/validate/validate.proto";
+
+
+service Selector {
+  rpc Select(SelectRequest) returns (SelectResponse);
+}
+
+message Route {
+}
+
+message SelectRequest {
+    map<string,string>  metadata = 1;
+    repeated Route routes = 2;
+}
+message SelectResponse{
+    int status = 1;
+    Route route = 2;
+}

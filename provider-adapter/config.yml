@@ -1,0 +1,5 @@
+bright_data:
+  token: "xxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  gateway:
+    host: brd.superproxy.io
+    port: 22225

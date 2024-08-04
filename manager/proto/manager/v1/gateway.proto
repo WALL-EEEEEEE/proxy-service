@@ -1,0 +1,11 @@
+
+syntax = "proto3";
+package manager.v1;
+
+import "google/api/annotations.proto";
+import "manager/v1/common.proto";
+import "buf/validate/validate.proto";
+
+service GatewayService {
+
+}

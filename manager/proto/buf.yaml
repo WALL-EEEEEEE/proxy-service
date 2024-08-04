@@ -1,0 +1,12 @@
+version: v1
+#TODO - orgnize protos' package name
+name: "buf.build/proxy-service/manager"
+breaking:
+  use:
+    - FILE
+deps:
+   - buf.build/googleapis/googleapis
+   - buf.build/bufbuild/protovalidate
+lint:
+  use:
+    - DEFAULT

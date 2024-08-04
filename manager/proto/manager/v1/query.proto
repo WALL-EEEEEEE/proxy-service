@@ -1,0 +1,160 @@
+syntax = "proto3";
+package manager.v1;
+option go_package = "github.com/WALL-EEEEEEE/proxy-service/manager/gen/manager/v1";
+
+import "buf/validate/validate.proto";
+// A query for entities.
+message Query {
+
+  // The filter to apply.
+  Filter filter = 1;
+
+
+  // A starting point for the query results. Query cursors are
+  // returned in query result batches and
+  // [can only be used to continue the same
+  // query](https://cloud.google.com/datastore/docs/concepts/queries#cursors_limits_and_offsets).
+  bytes start_cursor = 2;
+
+  // An ending point for the query results. Query cursors are
+  // returned in query result batches and
+  // [can only be used to limit the same
+  // query](https://cloud.google.com/datastore/docs/concepts/queries#cursors_limits_and_offsets).
+  bytes end_cursor = 3;
+
+  // The number of results to skip. Applies before limit, but after all other
+  // constraints. Optional. Must be >= 0 if specified.
+  int32 offset = 4 [(buf.validate.field).int32.gte=0]; 
+
+  // The maximum number of results to return. Applies after all other
+  // constraints. Optional.
+  // Unspecified is interpreted as no limit.
+  // Must be >= 0 if specified.
+  int64 limit = 5 [(buf.validate.field).required=true, (buf.validate.field).int64.gte=0]; 
+}
+
+// A holder for any type of filter.
+message Filter {
+  // The type of filter.
+  oneof filter_type {
+    // A composite filter.
+    CompositeFilter composite_filter = 1;
+
+    // A filter on a property.
+    PropertyFilter property_filter = 2;
+  }
+}
+
+// A filter that merges multiple other filters using the given operator.
+message CompositeFilter {
+  // A composite filter operator.
+  enum Operator {
+    // Unspecified. This value must not be used.
+    OPERATOR_UNSPECIFIED = 0;
+
+    // The results are required to satisfy each of the combined filters.
+    AND = 1;
+
+    // Documents are required to satisfy at least one of the combined filters.
+    OR = 2;
+  }
+
+  // The operator for combining multiple filters.
+  Operator op = 1;
+
+  // The list of filters to combine.
+  //
+  // Requires:
+  //
+  // * At least one filter is present.
+  repeated Filter filters = 2;
+}
+
+// A filter on a specific property.
+message PropertyFilter {
+  // A property filter operator.
+  enum Operator {
+    // Unspecified. This value must not be used.
+    OPERATOR_UNSPECIFIED = 0;
+
+    // The given `property` is less than the given `value`.
+    //
+    // Requires:
+    //
+    // * That `property` comes first in `order_by`.
+    LESS_THAN = 1;
+
+    // The given `property` is less than or equal to the given `value`.
+    //
+    // Requires:
+    //
+    // * That `property` comes first in `order_by`.
+    LESS_THAN_OR_EQUAL = 2;
+
+    // The given `property` is greater than the given `value`.
+    //
+    // Requires:
+    //
+    // * That `property` comes first in `order_by`.
+    GREATER_THAN = 3;
+
+    // The given `property` is greater than or equal to the given `value`.
+    //
+    // Requires:
+    //
+    // * That `property` comes first in `order_by`.
+    GREATER_THAN_OR_EQUAL = 4;
+
+    // The given `property` is equal to the given `value`.
+    EQUAL = 5;
+
+    // The given `property` is equal to at least one value in the given array.
+    //
+    // Requires:
+    //
+    // * That `value` is a non-empty `ArrayValue` with at most 10 values.
+    // * No other `IN` or `NOT_IN` is in the same query.
+    IN = 6;
+
+    // The given `property` is not equal to the given `value`.
+    //
+    // Requires:
+    //
+    // * No other `NOT_EQUAL` or `NOT_IN` is in the same query.
+    // * That `property` comes first in the `order_by`.
+    NOT_EQUAL = 9;
+
+    // Limit the result set to the given entity and its descendants.
+    //
+    // Requires:
+    //
+    // * That `value` is an entity key.
+    // * No other `HAS_ANCESTOR` is in the same query.
+    HAS_ANCESTOR = 11;
+
+    // The value of the `property` is not in the given array.
+    //
+    // Requires:
+    //
+    // * That `value` is a non-empty `ArrayValue` with at most 10 values.
+    // * No other `IN`, `NOT_IN`, `NOT_EQUAL` is in the same query.
+    // * That `field` comes first in the `order_by`.
+    NOT_IN = 13;
+  }
+
+  // The property to filter by.
+  PropertyReference property = 1;
+
+  // The operator to filter by.
+  Operator op = 2;
+
+  // The value to compare the property to.
+  string value = 3;
+}
+
+// A reference to a property relative to the kind expressions.
+message PropertyReference {
+  // The name of the property.
+  // If name includes "."s, it may be interpreted as a property name path.
+  string name = 2;
+}

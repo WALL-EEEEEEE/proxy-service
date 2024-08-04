@@ -1,0 +1,105 @@
+syntax = "proto3";
+package manager.v1;
+
+import "google/api/annotations.proto";
+import "buf/validate/validate.proto";
+import "manager/v1/common.proto";
+
+service ProxyProviderService {
+  rpc GetProvider(GetProviderRequest) returns (GetProviderResponse) {
+    option (google.api.http) = {
+        get: "/v1/proxy-provider/{id}"
+    };
+  }
+    rpc GetProviderByName(GetProviderByNameRequest) returns (GetProviderByNameResponse) {
+    option (google.api.http) = {
+        get: "/v1/proxy-provider/{name}"
+    };
+  }
+  rpc ListProvider(ListProviderRequest) returns (ListProviderResponse) {
+    option (google.api.http) = {
+        get: "/v1/proxy-provider"
+    };
+  }
+  rpc AddProvider(AddProviderRequest) returns (AddProviderResponse){
+    option (google.api.http) = {
+        post: "/v1/proxy-provider"
+        body: "*"
+    };
+  }
+  rpc DeleteProvider(DeleteProviderRequest) returns (DeleteProviderResponse) {
+    option (google.api.http) = {
+        delete: "/v1/proxy-provider"
+    };
+  }
+  rpc UpdateProvider(UpdateProviderRequest) returns (UpdateProviderResponse) {
+    option (google.api.http) = {
+        patch: "/v1/proxy-provider"
+    };
+  }
+}
+
+
+message ProxyProvider {
+    string id = 1;
+    string name = 2;
+}
+
+message GetProviderRequest {
+  string id = 1 [ (buf.validate.field).cel = {
+    id: "id",
+    message: "provider id must not be empty",
+    expression: "size(this) >= 1",
+  }];
+}
+
+message GetProviderResponse {
+  ResponseStatus status = 1;
+  ProxyProvider provider = 2;
+}
+
+message GetProviderByNameRequest {
+  string name = 1;
+}
+
+message GetProviderByNameResponse {
+  ResponseStatus status = 1;
+  ProxyProvider provider = 2;
+}
+
+message ListProviderRequest {
+  int64 limit = 1 [(buf.validate.field).required=true, (buf.validate.field).int64.gt=0];// ;
+  int64 offset = 2 [(buf.validate.field).required=true, (buf.validate.field).int64.gt=0];;
+}
+
+message ListProviderResponse {
+  ResponseStatus status = 1;
+  repeated ProxyProvider provider_list = 2;
+}
+
+message AddProviderRequest {
+  string name = 1 [
+    (buf.validate.field).required=true, 
+    (buf.validate.field).string.min_len=1];// the name of the proxy provider
+}
+
+message AddProviderResponse {
+  ResponseStatus status = 1;
+  string id = 2;
+}
+
+message DeleteProviderRequest {
+  string id = 1;
+}
+
+message DeleteProviderResponse {
+  ResponseStatus status = 1;
+}
+
+message UpdateProviderRequest {
+  string id = 1;
+}
+
+message UpdateProviderResponse {
+  ResponseStatus status = 1;
+}

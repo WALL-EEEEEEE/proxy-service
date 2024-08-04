@@ -1,0 +1,13 @@
+version: v1
+#TODO - reorgnize protos' package name
+name: "buf.build/proxy-service/provider-adapter"
+breaking:
+  use:
+    - FILE
+deps:
+   - buf.build/googleapis/googleapis
+   - buf.build/bufbuild/protovalidate
+#   - buf.build/proxy-service/manager
+lint:
+  use:
+    - DEFAULT

@@ -1,0 +1,4 @@
+version: v1
+directories:
+  - manager/proto
+  - provider-adapter/proto

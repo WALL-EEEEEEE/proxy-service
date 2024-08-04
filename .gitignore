@@ -1,0 +1,5 @@
+**/gen
+**/bin
+**/.xmake
+.vscode
+**/build

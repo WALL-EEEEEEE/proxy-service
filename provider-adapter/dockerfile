@@ -1,0 +1,48 @@
+FROM golang:1.21.4-alpine3.18 AS grpc-base
+
+
+RUN  GOBIN=/go/bin go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@latest
+RUN  GOBIN=/go/bin go install  github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest 
+RUN  GOBIN=/go/bin go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+RUN  GOBIN=/go/bin go install  google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+RUN  GOBIN=/go/bin go install github.com/grpc-ecosystem/grpc-health-probe@latest
+
+FROM golang:1.21.4-alpine3.18 AS app-build
+
+COPY --from=grpc-base /go/bin/* /go/bin/
+COPY --from=bufbuild/buf /usr/local/bin/buf /usr/local/bin/buf
+
+
+WORKDIR /app/proxy/provider-adapter
+COPY provider-adapter/go.mod .
+COPY provider-adapter/go.sum .
+RUN go mod download && go mod tidy
+
+WORKDIR /app/proxy
+COPY buf.work.yaml .
+
+WORKDIR /app/proxy/manager
+COPY  manager/proto ./proto
+COPY  manager/buf.gen.yaml .
+
+WORKDIR /app/proxy/provider-adapter
+COPY provider-adapter/proto ./proto
+COPY provider-adapter/buf.gen.yaml .
+
+RUN  cd /app/proxy/manager && buf mod update proto && buf generate proto
+
+RUN  cd /app/proxy/provider-adapter && buf mod update proto && buf generate proto
+
+# run check_api job
+WORKDIR /app/proxy/
+COPY . .
+WORKDIR /app/proxy/provider-adapter
+RUN --mount=type=cache,mode=0755,target=/root/.cache/go-build --mount=type=cache,mode=0755,target=/root/go go build -o /go/bin/proxy-adapter-server .
+
+FROM alpine
+COPY --from=app-build /go/bin/proxy-adapter-server /app/proxy/proxy-adapter-server
+COPY --from=app-build /go/bin/grpc-health-probe /app/proxy/grpc-health-probe
+
+COPY provider-adapter/config.yml /app/proxy/config.yml
+CMD ["/app/proxy/proxy-adapter-server", "-c", "/app/proxy/config.yml"]
+

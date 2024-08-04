@@ -1,0 +1,213 @@
+syntax = "proto3";
+package manager.v1;
+option go_package = "github.com/WALL-EEEEEEE/proxy-service/manager/gen/manager/v1";
+
+import "manager/v1/query.proto";
+import "manager/v1/common.proto";
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/field_mask.proto";
+import "buf/validate/validate.proto";
+
+enum Proto {
+    PROTO_UNSPECIFIED = 0;
+    PROTO_HTTP = 1;
+    PROTO_HTTPS = 2;
+    PROTO_SOCKET = 3;
+    PROTO_WEBSOCKET = 4;
+}
+
+enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_CREATED = 1;
+    STATUS_CHECKED = 2;
+}
+
+message UseConfig {
+  string psn = 1 [(buf.validate.field).required = true];
+  string host = 2 [(buf.validate.field).required = true];
+  int64 port= 3 [(buf.validate.field).required = true];
+  string user = 4 [(buf.validate.field).required = true];
+  string password = 5 [(buf.validate.field).required = true];
+  map<string,string> extra = 6;
+}
+
+
+message Attr {
+  int64 latency = 1;
+  double stability = 2;
+  bool  availiable = 3;
+  bool  anonymous = 4;
+  repeated string tags = 5;
+  string country= 6;
+  string city = 7;
+  string organization = 8;
+  string location = 9;
+  string region = 10;
+}
+
+message Proxy {
+  //TODO - add validataion for ip, make it allow for pure ip and proxy url
+    repeated Proto proto = 1 [ (buf.validate.field).repeated.min_items = 1, (buf.validate.field).repeated.unique = true, (buf.validate.field).repeated.items = { enum: { defined_only: true } }];
+    string   ip = 2 [(buf.validate.field).required = true]; //[(buf.validate.field).string.ip = true];
+    int64    port = 3 [(buf.validate.field).required = true];
+    Status  status = 4 [(buf.validate.field).required = true, (buf.validate.field).enum.defined_only = true];
+    string provider = 5 [(buf.validate.field).required = true];
+    string api = 6 [(buf.validate.field).required = true];
+    string provider_id = 7 [(buf.validate.field).required = true];
+    string api_id = 8 [(buf.validate.field).required = true];
+    Attr attr = 9;
+    UseConfig use_config = 10 [(buf.validate.field).required = true];
+    google.protobuf.Timestamp created_at = 11 [(buf.validate.field).required = true, (buf.validate.field).timestamp.within={seconds: 10}];
+    google.protobuf.Timestamp updated_at = 12 [(buf.validate.field).timestamp.within={seconds: 10}];
+    google.protobuf.Timestamp checked_at = 13 [(buf.validate.field).timestamp.within={seconds: 10}];
+    oneof expiration {
+      option (buf.validate.oneof).required = true;
+      google.protobuf.Timestamp expire_time = 14 [(buf.validate.field).timestamp.gt_now = true ];
+      // Input only. The TTL for this resource.
+      int64 ttl = 15 [(google.api.field_behavior) = INPUT_ONLY, (buf.validate.field).cel = { 
+        id: "ttl",
+        message: "ttl must equal to -1 or greater than 0",
+        expression: "(this == -1 || this > 0) ? true : false",
+    }];
+    } 
+   string id = 16;
+}
+
+service ProxyService {
+  rpc ListProxies(ListProxiesRequest) returns (ListProxiesResponse) {
+    option (google.api.http) = {
+        get: "/v1/proxy"
+    };
+  }
+rpc GetProxy(GetProxyRequest) returns (GetProxyResponse) {
+    option (google.api.http) = {
+        get: "/v1/proxy/{id}"
+    };
+}
+
+rpc GetProxyByIp(GetProxyByIpRequest) returns (GetProxyByIpResponse) {
+    option (google.api.http) = {
+        get: "/v1/proxy/{ip}"
+    };
+  }
+
+  rpc AddProxy(AddProxyRequest) returns (AddProxyResponse){
+    option (google.api.http) = {
+        put: "/v1/proxy"
+    };
+  }
+  rpc DeleteProxy(DeleteProxyRequest) returns (DeleteProxyResponse) {
+    option (google.api.http) = {
+        delete: "/v1/proxy"
+    };
+  }
+  rpc UpdateProxy(UpdateProxyRequest) returns (UpdateProxyResponse) {
+    option (google.api.http) = {
+        patch: "/v1/proxy/{id}"
+    };
+  }
+}
+
+message ListProxiesRequest {
+    Query query = 1; 
+
+    google.protobuf.FieldMask fields = 2 ;
+
+    option (buf.validate.message).cel = {
+      id: "fields",
+      message: "required to be specific fields of proxy in ['id','proto', 'ip', 'port', 'status', 'provider', 'api', 'provider_id', 'api_id', 'attr', 'created_at', 'updated_at', 'checked_at', 'expire_time', 'use_config']",
+      expression: "this.fields.paths.all(path, path in ['id','proto', 'ip', 'port', 'status', 'provider', 'api', 'provider_id', 'api_id', 'attr', 'created_at', 'updated_at', 'checked_at', 'expire_time', 'use_config'])",
+    };
+}
+
+message ListProxiesResponse {
+  ResponseStatus status = 1;
+  repeated Proxy proxy_list = 2;
+  int64 total = 3;
+  int64 offset = 4;
+  int64 count = 5;
+  int64 limit = 6;
+}
+
+message GetProxyRequest {
+    string id = 1 [(buf.validate.field).required=true, (buf.validate.field).string.min_len=1];
+}
+
+message GetProxyResponse {
+  ResponseStatus status = 1;
+  Proxy proxy = 2;
+}
+
+message GetProxyByIpRequest {
+  string ip = 1 [(buf.validate.field).required=true, (buf.validate.field).string.min_len=1];
+}
+
+message GetProxyByIpResponse {
+  ResponseStatus status = 1;
+  Proxy proxy = 2;
+}
+
+message AddProxyRequest {
+    string provider_id =1 [(buf.validate.field).required=true, (buf.validate.field).string.min_len=1];
+    string api_id = 2 [(buf.validate.field).required=true, (buf.validate.field).string.min_len=1];
+    Proxy proxy = 3 [(buf.validate.field).required=true];
+}
+
+message AddProxyResponse {
+  ResponseStatus status = 1;
+  string id = 2; //id of the proxy 
+}
+
+message DeleteProxyRequest {
+    string id =1; //id of the proxy 
+
+}
+
+message DeleteProxyResponse {
+  ResponseStatus status = 1;
+}
+
+message UpdateProxyRequest {
+  string id =1 [(buf.validate.field).required=true, (buf.validate.field).string.min_len=1]; //id of the proxy 
+  Proxy proxy = 2 [(buf.validate.field).skipped =true];
+  google.protobuf.FieldMask fields = 3;
+  option (buf.validate.message).cel = {
+    id: "fields",
+    message: "must be non-empty, and required to be specific fields of proxy in ['proto', 'status', 'updated_at', 'checked_at', 'attr'] ",
+    expression: "size(this.fields.paths) > 0 && this.fields.paths.all(path, path in ['proto', 'status', 'updated_at', 'checked_at', 'attr'])",
+	 };
+  option (buf.validate.message).cel = {
+    id: "proxy.proto",
+    message: "proxy.proto must be no-empty set, and items must be unique in ['PROTO_HTTP','PROTO_HTTPS','PROTO_SOCKET','PROTO_WEBSOCKET']",
+    expression: "'proto' in this.fields.paths ? ((this.proxy.proto.unique() && this.proxy.proto.size() > 0) ? this.proxy.proto.all(p, p in [1,2,3,4]): false) : true",
+  };
+  option (buf.validate.message).cel = {
+    id: "proxy.status",
+    message: "proxy.status must be set, and be in ['STATUS_CREATED','STATUS_CHECKED']",
+    expression: "'status' in this.fields.paths ? this.proxy.status in [1,2]: true",
+  };
+  option (buf.validate.message).cel = {
+    id: "proxy.updated_at",
+    message: "proxy.updated_at must be set, and be earier than now",
+    expression: "'updated_at' in this.fields.paths ? (this.proxy.updated_at < now): true",
+  };
+
+  option (buf.validate.message).cel = {
+    id: "proxy.checked_at",
+    message: "proxy.checked_at must be set, and be earier than now",
+    expression: "'checked_at' in this.fields.paths ? (this.proxy.checked_at < now): true",
+  };
+
+  option (buf.validate.message).cel = {
+    id: "proxy.attr",
+    message: "proxy.attr must be set, and no-empty",
+    expression: "'attr' in this.fields.paths ? has(this.proxy.attr): true",
+  };
+
+}
+message UpdateProxyResponse {
+  ResponseStatus status = 1;
+}

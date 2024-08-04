@@ -1,0 +1,118 @@
+version: "3.6"
+
+services:
+  manager-server: &manager-server
+    build:
+      context: "."
+      dockerfile: "manager/server.dockerfile"
+    ports:
+      - 8083:8083
+      - 8082:8082
+    environment:
+      - LOGLEVEL=DEBUG
+    depends_on:
+      mysql:
+          condition: service_healthy
+          restart: true
+      redis:
+          condition: service_healthy
+          restart: true
+    healthcheck:
+      test: ["CMD", "/app/proxy/grpc-health-probe", "-addr", ":8082"] 
+      start_period: 5s
+      interval: 5s
+      timeout: 5s
+      retries: 55
+    profiles:
+      - prod
+  proxy-api-checker: &proxy-api-checker
+    build:
+      context: "."
+      dockerfile: "manager/check-api.dockerfile"
+    env_file:
+      - "manager/check_api.env"
+    depends_on:
+      mysql:
+          condition: service_healthy
+          restart: true
+      redis:
+          condition: service_healthy
+          restart: true
+      manager-server:
+          condition: service_healthy
+          restart: true
+      proxy-adapter:
+          condition: service_healthy
+          restart: true
+    profiles:
+      - prod
+  proxy-checker: &proxy-checker
+    build:
+      context: "."
+      dockerfile: "manager/check-proxy.dockerfile"
+    env_file:
+      - "manager/proxy_checker.env"
+    depends_on:
+      redis:
+          condition: service_healthy
+          restart: true
+      manager-server:
+          condition: service_healthy
+          restart: true
+    profiles:
+      - prod
+  proxy-adapter: &proxy-adapter
+    build:
+      context: "."
+      dockerfile: "provider-adapter/Dockerfile"
+    env_file:
+      - "manager/proxy_adapter.env"
+    ports:
+      - 8084:8082
+      - 8085:8083
+    healthcheck:
+      test: ["CMD", "/app/proxy/grpc-health-probe", "-addr", ":8082"] 
+      start_period: 5s
+      interval: 5s
+      timeout: 5s
+      retries: 55
+    profiles:
+      - prod
+  gateway: &gateway
+    build:
+      context: "."
+      dockerfile: "gateway/Dockerfile"
+    env_file:
+      - "gateway/.env"
+    ports:
+      - 8000:8000
+    depends_on:
+      manager-server:
+          condition: service_healthy
+          restart: true
+    profiles:
+      - prod
+
+  mysql:
+    image: "mysql:8.2.0"
+    environment:
+      MYSQL_ROOT_PASSWORD: xxxx
+    ports:
+      - 3306:3306
+    healthcheck:
+      test: mysqladmin ping -h 127.0.0.1 -u root --password=$$MYSQL_ROOT_PASSWORD
+      start_period: 5s
+      interval: 5s
+      timeout: 5s
+      retries: 55
+  redis:
+    image: "redis/redis-stack:7.2.0-v8"
+    ports:
+      - 6379:6379
+      - 8001:8001 
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+      start_period: 5s
+      interval: 5s
+      timeout: 5s
+      retries: 55
